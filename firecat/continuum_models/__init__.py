@@ -1,0 +1,1 @@
+from firecat.continuum_models.bicarb_GMPNP_solver import BicarbGMPNPSolver 
