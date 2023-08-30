@@ -8,7 +8,7 @@ from mpmath import mpf
 def get_rate(directory, prefix='catmap_CO2R'):
     """ get the production rate from catmap log file
     """
-    filename = directory + prefix + '.log'
+    filename = directory + "/" + prefix + '.log'
     with open(filename,'r') as f:
         lines = f.readlines()
 
