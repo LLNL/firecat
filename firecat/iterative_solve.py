@@ -14,20 +14,21 @@ def get_activities(solver, args):
     """
     dofs = args.dofs
     cCO2, cOH, cHCO3, cCO32, cH, cK, Phi = solver.u.subfunctions
-    aCO2 = cCO2.dat.data[dofs[0]] / solver.conc_params[0]["bulk"]
-    aH = cH.dat.data[dofs[0]] / 1000.
+    aCO2 = cCO2.vector().get_local()[dofs[0]] / solver.conc_params[0]["bulk"]
+    aH = cH.vector().get_local()[dofs[0]] / 1000.
     return [aCO2, aH]
 
-def prate_to_fluxes(prate, flux, fluxOH, dof):
+def prate_to_fluxes(prate, local_flux, local_fluxOH, dof):
     """ takes prate and updates fluxes
     prate: production rate
-    flux: CO2 flux (firedrake.Function) 
-    fluxOH: OH flux (firedrake.Function)
+    local_flux: Local data for CO2 flux (numpy.array)
+    local_fluxOH: Local data for OH flux (numpy.array)
     dof: index of the dof
     """
     tof = -prate
-    flux.dat.data[dof] = convert_TOF_to_flux(tof) * 1e4 # mol/m2
-    fluxOH.dat.data[dof] = -2.*flux.dat.data[dof]
+    flux = convert_TOF_to_flux(tof) * 1e4 # mol/m2
+    local_flux[dof] = flux
+    local_fluxOH[dof] = -2 * flux
 
 def iterative_coupling(solver, args, U, Upzc, u_old0, u_old1):
     """ For a given potential, solve the echemfem - catmap coupled problem
@@ -100,8 +101,8 @@ def iterative_coupling(solver, args, U, Upzc, u_old0, u_old1):
 
         if args.mkm_model == 'catmap_CO2R':
             _, _, _, _, _, _, Phi = solver.u.subfunctions
-            sigma = 1e2*C_gap * (U - Upzc - Phi.dat.data[dofs[0]]) #muC/cm2
-            surfacePhi = Phi.dat.data[dofs[0]]
+            sigma = 1e2*C_gap * (U - Upzc - Phi.vector().get_local()[dofs[0]]) #muC/cm2
+            surfacePhi = Phi.vector().get_local()[dofs[0]]
         else:
             sigma=None
             surfacePhi=None
@@ -110,10 +111,14 @@ def iterative_coupling(solver, args, U, Upzc, u_old0, u_old1):
         flux.assign(Constant(0.))
         fluxOH.assign(Constant(0.))
 
+        local_flux = flux.vector().get_local() 
+        local_fluxOH = flux.vector().get_local()
         for j in range(dofs[0].size):
             prate = run_catmap(U, pH[j], activities[0][j], sigma=sigma[j], phi=surfacePhi[j], j=j, template_root=template_root)
-            prate_to_fluxes(prate, flux, fluxOH, dofs[0][j])
-            
+            prate_to_fluxes(prate, local_flux, local_fluxOH, dofs[0][j])
+        local_flux = flux.vector().set_local(local_flux) 
+        local_fluxOH = flux.vector().set_local(local_fluxOH)
+
         if args.mkm_model == 'catmap_CO2R':   
             solver.fluxCO2.assign(flux)
         else:
@@ -124,7 +129,6 @@ def iterative_coupling(solver, args, U, Upzc, u_old0, u_old1):
             flux_diff_rel = norm((flux_old - flux)*solver.bump)/norm(flux*solver.bump)
         else:
             flux_diff_rel = norm(flux_old - flux)/norm(flux)
-        
 
         u_old1.assign(u_old0)
         u_old0.assign(solver.u)
@@ -159,7 +163,7 @@ def potential_continuation(solver, Us, args):
         u = Function(V)
         bc = DirichletBC(V, Constant(1), i)
         bc.apply(u)
-        return np.where(u.vector()[:]==1)
+        return np.where(u.vector().get_local()[:]==1)
 
     # get the indices of the boundary points
     args.dofs = get_boundary_dofs(solver.V, solver.electrode_id)
@@ -206,14 +210,15 @@ def potential_continuation(solver, Us, args):
 
         pprint("j_CO_avg: ",j_CO_avg)
 
-        if not os.path.exists('testing'):
-           os.makedirs('testing')
-        filename = "testing/jCO.txt"
-        if U == Us[0] and getattr(args, 'checkpoint', None) is None:
-            file_ = open(filename, "w")
-        else:
-            file_ = open(filename, "a")
-        print("U = ", U,", j_CO = ", j_CO_avg, file=file_)
-        file_.close()
+        if solver.mesh.comm.rank == 0:
+            if not os.path.exists('testing'):
+               os.makedirs('testing')
+            filename = "testing/jCO.txt"
+            if U == Us[0] and getattr(args, 'checkpoint', None) is None:
+                file_ = open(filename, "w")
+            else:
+                file_ = open(filename, "a")
+            print("U = ", U,", j_CO = ", j_CO_avg, file=file_)
+            file_.close()
 
         File("testing/jCO.pvd").write(Function(solver.V, name='jCO').interpolate(j_CO))
