@@ -114,7 +114,10 @@ def iterative_coupling(solver, args, U, Upzc, u_old0, u_old1):
         local_flux = flux.vector().get_local() 
         local_fluxOH = flux.vector().get_local()
         for j in range(dofs[0].size):
-            ID = 'np' + str(solver.mesh.comm.rank) + '_' + str(j)
+            if solver.mesh.comm.Get_size() == 1:
+                ID = j
+            else:
+                ID = 'np' + str(solver.mesh.comm.rank) + '_' + str(j)
             prate = run_catmap(U, pH[j], activities[0][j], sigma=sigma[j], phi=surfacePhi[j], j=ID, template_root=template_root)
             prate_to_fluxes(prate, local_flux, local_fluxOH, dofs[0][j])
         local_flux = flux.vector().set_local(local_flux) 
