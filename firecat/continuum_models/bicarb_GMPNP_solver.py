@@ -43,10 +43,10 @@ C_K_bulk = C_K
 
 #Make sure that electroneutrality holds by manually adjusting K concentration
 netcharge = C_K_bulk+ C_H_bulk -2.*C_CO32_bulk - C_HCO3_bulk - C_OH_bulk
-pprint("Total charge is:",netcharge )
+# pprint("Total charge is:",netcharge )
 C_K_bulk = C_K_bulk - netcharge
 netcharge = C_K_bulk+ C_H_bulk -2.*C_CO32_bulk - C_HCO3_bulk - C_OH_bulk
-pprint("Total charge is:",netcharge )
+# pprint("Total charge is:",netcharge )
 
 def bulk_reaction(y):
     yCO2=y[0]

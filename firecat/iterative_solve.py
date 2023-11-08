@@ -13,9 +13,17 @@ def get_activities(solver, args):
             dofs:       indices of the dofs of electrode
     """
     dofs = args.dofs
-    cCO2, cOH, cHCO3, cCO32, cH, cK, Phi = solver.u.subfunctions
-    aCO2 = cCO2.vector().get_local()[dofs[0]] / solver.conc_params[0]["bulk"]
-    aH = cH.vector().get_local()[dofs[0]] / 1000.
+    u_ = solver.u.subfunctions
+    cCO2 = u_[solver.i_c["CO2"]]
+    aCO2 = cCO2.vector().get_local()[dofs[0]] / 34. #solver.conc_params[solver.i_c["CO2"]]["bulk"] # bulk?
+    if solver.i_c.get("H"):
+        cH = u_[solver.i_c["H"]]
+        aH = cH.vector().get_local()[dofs[0]] / 1000.
+    else:
+        cOH = u_[solver.i_c["OH"]]
+        aOH = cOH.vector().get_local()[dofs[0]] / 1000.
+        aH = 1e-14/aOH
+
     return [aCO2, aH]
 
 def prate_to_fluxes(prate, local_flux, local_fluxOH, dof):
@@ -100,7 +108,8 @@ def iterative_coupling(solver, args, U, Upzc, u_old0, u_old1):
         pH = -np.log10(aH)
 
         if args.mkm_model == 'catmap_CO2R':
-            _, _, _, _, _, _, Phi = solver.u.subfunctions
+            u_ = solver.u.subfunctions
+            Phi = u_[solver.i_Ul]
             sigma = 1e2*C_gap * (U - Upzc - Phi.vector().get_local()[dofs[0]]) #muC/cm2
             surfacePhi = Phi.vector().get_local()[dofs[0]]
         else:
@@ -205,7 +214,8 @@ def potential_continuation(solver, Us, args):
 
         u_old0, u_old1 = iterative_coupling(solver, args, U, Upzc, u_old0, u_old1)
             
-        cCO2, cOH, cHCO3, cCO32, cH, cK, Phi = solver.u.subfunctions
+        u_ = solver.u.subfunctions
+        cCO2 = u_[solver.i_c["CO2"]]
 
         j_CO = -2 * solver.neumann(cCO2, {"name": "CO2"}, solver.u) * F * 1e-4 * 1e3   # mA/cm2
         j_CO_avg = assemble(j_CO * ds(solver.electrode_id)) \
