@@ -2,7 +2,7 @@
 
 [![DOI](https://zenodo.org/badge/679916980.svg)](https://zenodo.org/badge/latestdoi/679916980)
 
-FireCat performs multiscale simulations by coupling ab initio microkinetic simulations from CatMAP with two-dimensional continuum transport simulations from EchemFEM (Firedrake). This coupling is performed in an iterative fashion. The examples provided here are specific to electrochemical CO2 reduction to CO on Au electrodes.
+FireCat performs multiscale simulations by coupling ab initio microkinetic simulations from CatMAP with two-dimensional continuum transport simulations from EchemFEM (Firedrake). This coupling is performed in an iterative fashion. The examples provided here are specific to electrochemical CO2 reduction to CO on Au electrodes, producing the results in [Govindarajan et al.](https://doi.org/10.1103/PRXEnergy.2.033010)
 
 ## Getting started
 
